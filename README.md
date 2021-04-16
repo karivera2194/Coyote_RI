@@ -1,1 +1,3 @@
 # Coyote_RI
+
+This research was conducted by Kimberly Rivera with support from Dr. Carlos Garcia-Quijano and Dr. Brian Gerber at the University of Rhode Island. Human surveys were conducted online using Qualtrics Survey Software. Data was collected to better understand human-coyote relationships that exists in Rhode Island. Demogrpahic and background data (such as environmental views, eduction, age, etc.) were collected as well as peoples thoughts and interactions with coyotes in the state. Other questions were asked to address peoples knowledge and involement with coyotes and wildlife management in the state. 
