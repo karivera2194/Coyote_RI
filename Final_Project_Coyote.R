@@ -11,7 +11,7 @@ library(dplyr)
 library(psych)
 library(janitor)
 library(corrr)
-library(psych)
+#library(MASS)
 
 # Read in data------------------------------------------------------------------
 setwd("C:/Users/Kim Rivera/Documents/Coyotes/Questionnaire Data/live survey/r_data")
@@ -74,8 +74,13 @@ coyote = filter(coyote, flagged != 1)
 
 ## Age --------------------------------------------------------------------------
 ## Check Out Age Distribution
-ggplot(coyote, aes(x=age)) +
-  geom_histogram()
+ggplot(coyote, aes(x=age)) + geom_histogram(fill ='yellow4', color = 'yellow4') +
+  labs(x = "Age", y = "Counts", title = "Participant Age Distribution") +
+  theme_minimal() +
+  theme(legend.position="none",
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        text = element_text(family = "LM Roman 10 Bold", size=10))
+  
 
 # Hmm, I believe it is unlikely a participant is over 110 y/o. Either this was entered wrong or perhaps the 
 # participant doesn't want to share their age, or did not take this survey seriously. Let's look at the data 
@@ -101,8 +106,11 @@ coyote <- coyote %>% mutate(gender = fct_collapse(gender,
                                                   non.binary = c("Female, non-binary/fluid" ,"non binary", "Genderqueer/Nonbinary", "Non-Binary","Non-binary","non-binary")))
 
 ## Check Out Distribution
-ggplot(coyote, aes(x= gender)) +
-  geom_bar()
+ggplot(coyote, aes(x= age, fill = gender)) + geom_bar() +
+  labs(title = 'Participant Gender Distribution by Age')+
+  scale_x_continuous(breaks = seq(10, 100, by = 5))+
+theme_minimal()
+   
 
 ## Education--------------------------------------------------------------------
 levels(coyote$education)
@@ -131,6 +139,14 @@ ggplot(coyote, aes(household.income, fill = household.income)) +
         axis.text.x = element_text(angle = 45, hjust = 1),
         text = element_text(family = "LM Roman 10 Bold", size=15)) 
 
+# Let's see if income is related to education
+ggplot(coyote, aes(household.income, fill = education)) +
+  geom_bar() +
+  labs(x = "Household Income", y = "Counts", title = "Education by Household Income") + 
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        text = element_text(family = "LM Roman 10 Bold", size=15)) 
+
 # County--------------------------------------------------------------------------------
 levels(factor(coyote$county))
 
@@ -154,11 +170,20 @@ coyote %>%
         axis.text.x = element_text(angle = 45, hjust = 1),
         text = element_text(family = "LM Roman 10 Bold", size=15)) 
 
-## Pet Demographics--------------------------------------------------------------
-# Lets check out population of pet owners
-ggplot(coyote, aes(x = pet.owner, color = pet)) +
-  geom_bar(fill="white")
+# Let's see if county is related to education
+ggplot(coyote, aes(county, fill = education)) +
+  geom_bar() +
+  labs(x = "County", y = "Counts", title = "Education by County") + 
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        text = element_text(family = "LM Roman 10 Bold", size=15)) 
 
+
+## Pet Demographics--------------------------------------------------------------
+
+coyote <- coyote %>% 
+  mutate(pet.owner = ifelse(str_detect(pet.owner,"(?i)yes"),1,0))
+         
 # correct non-informative levels to NAs
 coyote <- coyote %>% mutate(pet = recode_factor(pet, "Tamed Coyote" = NA_character_)) %>% 
   mutate(gender = recode_factor(pet, "Two" = NA_character_)) %>% 
@@ -199,17 +224,48 @@ coyote <- coyote %>%
          pet.ferret = ifelse(str_detect(pet.text, "(?i)ferret"),1,0), 
          pet.rodent = ifelse(str_detect(pet.text, "(?i)gerbil|guinea.*pig|hamter"),1,0)) 
 
-## Pet-coyote interaction
-## Create new column for having had any pet-coyote interaction
-pet.int = coyote %>%
-  select(c(matches("risk.|encounter.|attack.|missing.|kill."))) %>%
-  select(-c(1:2, 23:length(.)))
+# Lets check out population of pet owners
+levels <- coyote %>% 
+  pivot_longer(pet.outdoor.cat:pet.rodent, names_to="index",values_to="value") %>% 
+  filter(value == 1) %>% 
+  group_by(index) %>% 
+  summarize(count=n()) %>% 
+  arrange(count) %>% 
+  select(index) %>% 
+  as_vector()
 
+# data with including others answers 
+coyote %>% 
+  pivot_longer(pet.outdoor.cat:pet.rodent, values_to="value",names_to="index") %>%
+  filter(value==1) %>% 
+  mutate(index = factor(index, levels=levels)) %>% 
+  ggplot(aes(x = index, fill = index)) + 
+  geom_bar() + 
+  labs(x = "Pets", y = "Counts", title = "Pet ownership") + 
+  theme_minimal() + 
+  theme(legend.position="none",
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        text = element_text(family = "LM Roman 10 Bold", size=15))
+
+## Pet-coyote interactions------------------------------------------------------
+# Create new column for having had any pet-coyote interaction (only focus on outdoor cats and dogs for now)
+pet.int = coyote %>%
+  select(encounter.outdoor.cat:kill.small.dog ) %>% # select all columns about pet interactions with coyotes
+  select(-contains("risk")) %>%
+  mutate_all(~case_when(. == "Yes" ~ 1,
+                        . == "No" ~ 0)) %>% # change yes/no for 1/0
+  add_column(pet.int = rowSums(., na.rm=TRUE)) %>% # sum all the interactions 
+  mutate(pet.int = ifelse(pet.int > 0,"Yes","No")) # # if more than one interaction, assign Yes 
+
+## Add the column to the dataset 
+coyote$pet.int <- pet.int$pet.int 
+coyote <- coyote %>% 
+  mutate(pet.int = replace(pet.int, pet.owner == "No", NA))
 # Change pet.int from yes/no, to 1/0
-pet.int = pet.int %>%
-  mutate_all(~case_when(
-    . == "Yes" ~ 1,
-    . == "No" ~ 0))
+coyote = coyote %>%
+  mutate(pet.int = case_when(
+    pet.int == "Yes" ~ 1,
+    pet.int == "No" ~ 0))
 
 ## Livestock Demographics-------------------------------------------------------
 
@@ -230,28 +286,48 @@ coyote <- coyote %>%
          livestock.shellfish = ifelse(str_detect(livestock.text, "(?i)quoahog"),1,0),
          livestock.rabbit = ifelse(str_detect(livestock.text, "(?i)outdoor.*rabbits|rabbits"),1,0))
 
-## Create new column for having had any livestock-coyote interaction
+# counts by levels 
+levels <- coyote %>% 
+  pivot_longer(livestock.cattle:livestock.rabbit, names_to="index",values_to="value") %>% 
+  filter(value == 1) %>% 
+  group_by(index) %>% 
+  summarize(count=n()) %>% 
+  arrange(count) %>% 
+  select(index) %>% 
+  as_vector()
+
+# all data 
+coyote %>% 
+  pivot_longer(livestock.cattle:livestock.rabbit, names_to="index",values_to="value") %>% 
+  mutate(index = factor(index, levels = levels)) %>% 
+  filter(value == 1) %>% 
+  ggplot(aes(x = index, fill = index)) + 
+  geom_bar() + 
+  labs(x = "Livestock Ownership", y = "Counts", title = "Livestock Ownership") + 
+  theme_minimal() + 
+  theme(legend.position="none",
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        text = element_text(family = "LM Roman 10 Bold", size=15)) 
+
+## Livestock-coyote interaction-------------------------------------------------
+## Create new column for having had any pet-coyote interaction (only focus on outdoor cats and dogs for now)
 livestock.int = coyote %>%
-  select(matches("risk.|encounter.|attack.|missing.|kill.")) %>%
-  select(-c(1:22))
+  select(encounter.goat:kill.cattle) %>% # select all columns about livestock interactions with coyotes
+  select(-contains("risk")) %>%
+  mutate_all(~case_when(. == "Yes" ~ 1,
+                        . == "No" ~ 0)) %>% # change yes/no for 1/0
+  add_column(livestock.int = rowSums(., na.rm=TRUE)) %>% # sum all the interactions 
+  mutate(livestock.int = ifelse(livestock.int > 0,"Yes","No")) # # if more than one interaction, assign Yes 
 
-##FIGURING OUT 
-# coyote2 = coyote %>% select(matches("risk.|encounter.|attack.|missing.|kill.")) %>%
-#   mutate_all(~case_when(
-#     . == "Yes" ~ 1,
-#     . == "No" ~ 0)) %>% 
-#   mutate(livestock.int = ifelse(rowSums(., na.rm=TRUE) >= 1, 1, 0))
-
-
-  ifelse(rowSums(livestock.int.perc, na.rm=TRUE) >= 1, 1, 0)) %>%
-  select(livestock.int.perc)
-  # if marches these then put 1 in column
-
+## Add the column to the dataset 
+coyote$livestock.int <- livestock.int$livestock.int 
+coyote <- coyote %>% 
+  mutate(livestock.int = replace(livestock.int, pet.owner == "No", NA))
 # Change livestock.int from yes/no, to 1/0
-livestock.int = livestock.int %>%
-  mutate_all(~case_when(
-    . == "Yes" ~ 1,
-    . == "No" ~ 0))
+coyote = coyote %>%
+  mutate(livestock.int = case_when(
+    livestock.int == "Yes" ~ 1,
+    livestock.int == "No" ~ 0))
 
 # Lets focus on participants thoughts on coyotes, e.g. ranking of benefits and risks---------------------------------
 # Starting with benefits strong disagree [1] -> strong agree [5]
@@ -275,21 +351,20 @@ coyote <- coyote  %>%
   mutate(diseases = fct_relevel(diseases, c("Strongly Agree", "Agree", "Neither agree nor disagree",  "Disagree", "Strongly disagree")))
 
 # Now we need to create a table of these columns for Cronbach's alpha test
-# This test will tell us how well items here correlate
-# ideally want an alpha coefficient of 0.08 or higher for short lists of items 
 
-coyote.values = coyote %>%
+coyote.attitude = coyote %>%
   select(c(important.ecosystem, beneficial.humans, beneficial.wildlife, important.hunters,
            risk.humans, risk.pets, negative.wildlife, diseases)) %>%
   mutate_at(c("important.ecosystem", "beneficial.humans", "beneficial.wildlife", "important.hunters",
               "risk.humans", "risk.pets", "negative.wildlife", "diseases"), ~unclass(.))
 
-psych::alpha(coyote.values)
-
+# This test will tell us how well items here correlate
+# ideally want an alpha coefficient of 0.08 or higher for short lists of items 
+psych::alpha(coyote.attitude)
+# this gives us a raw alpha of .84, a .8 correlation is considered sufficient for short lists
 
 # Let's look at our hypothesis and start by analyzing the ordinal level data, education
 # Hyp 2) Individuals with more education will have a more positive view of coyotes
-
 
 kendall = coyote %>% select(c(beneficial.humans, beneficial.wildlife, important.ecosystem, important.hunters, 
                               diseases, negative.wildlife, risk.humans, risk.pets, education)) %>%
@@ -307,24 +382,122 @@ risk.pet.ed = cor.test(kendall$risk.pets, kendall$education, method="kendall")
 
 # Hyp 3) Pet owners pet-coyote interactions will have a more negative view of coyotes
 
-coyote_2 = coyote %>%
-  mutate(pet.int = case_when(
-    pet.int == "Yes" ~ 1,
-    pet.int == "No" ~ 0))
+eco.pet = cor.test(kendall$important.ecosystem, coyote$pet.int, method="kendall")
+ben.hum.pet = cor.test(kendall$beneficial.humans, coyote$pet.int, method="kendall")
+ben.wild.pet = cor.test(kendall$beneficial.wildlife, coyote$pet.int, method="kendall")
+hunt.pet = cor.test(kendall$important.hunters, coyote$pet.int, method="kendall")
+dis.pet = cor.test(kendall$diseases, coyote$pet.int, method="kendall")
+neg.wild.pet = cor.test(kendall$negative.wildlife, coyote$pet.int, method="kendall")
+risk.hum.pet = cor.test(kendall$risk.humans, coyote$pet.int, method="kendall")
+risk.pet.pet = cor.test(kendall$risk.pets, coyote_2$pet.int, method="kendall")
 
-coyote_2 = coyote %>%
-  mutate(animal.high.int = case_when(
-    animal.high.int == "Yes" ~ 1,
-    animal.high.int == "No" ~ 0))
+# Hyp 4) Pet owners livestock-coyote interactions will have a more negative view of coyotes
 
-eco.agg = cor.test(kendall$important.ecosystem, pet.int, method="kendall")
-ben.hum.agg = cor.test(kendall$beneficial.humans, coyote$animal.high.int, method="kendall")
-ben.wild.agg = cor.test(kendall$beneficial.wildlife, coyote$animal.high.int, method="kendall")
-hunt.agg = cor.test(kendall$important.hunters, coyote$animal.high.int, method="kendall")
-dis.agg = cor.test(kendall$diseases, coyote$animal.high.int, method="kendall")
-neg.wild.agg = cor.test(kendall$negative.wildlife, coyote$animal.high.int, method="kendall")
-risk.hum.agg = cor.test(kendall$risk.humans, coyote$animal.high.int, method="kendall")
-risk.pet.agg = cor.test(kendall$risk.pets, coyote_2$animal.high.int, method="kendall")
+eco.livestock = cor.test(kendall$important.ecosystem, coyote$livestock.int, method="kendall")
+ben.hum.livestock = cor.test(kendall$beneficial.humans, coyote$livestock.int, method="kendall")
+ben.wild.livestock = cor.test(kendall$beneficial.wildlife, coyote$livestock.int, method="kendall")
+hunt.livestock = cor.test(kendall$important.hunters, coyote$livestock.int, method="kendall")
+dis.livestock = cor.test(kendall$diseases, coyote$livestock.int, method="kendall")
+neg.wild.livestock = cor.test(kendall$negative.wildlife, coyote$livestock.int, method="kendall")
+risk.hum.livestock = cor.test(kendall$risk.humans, coyote$livestock.int, method="kendall")
+risk.pet.livestock = cor.test(kendall$risk.pets, coyote$livestock.int, method="kendall")
 
-# hypothesis
 
+# Ordinal Regression------------------------------------------------------------
+
+kendall = kendall %>% rowwise() %>%
+  mutate(coyote.attitude = mean(c(important.ecosystem, beneficial.humans, beneficial.wildlife, important.hunters)), na.rm = TRUE) %>%
+  select(-na.rm)
+
+coyote$coyote.attitude <- kendall$coyote.attitude 
+
+coyote <- coyote %>%
+  mutate(coyote.attitude = ordered(coyote.attitude, levels = c("1", "1.5", "2","2.5","3","3.5","4","4.5","5"))) 
+  #        %>%
+  # mutate_at(c("pet.owner","livestock.owner","reaction","gender","education","county","nature.person","animal.high.int"), factor)
+
+library(MASS) #this masks 'select' from dplyr, to use dplyr use doplyr::select or unload MASS package
+#str(coyote)
+?polr
+library(effects)
+
+# What is ordinal regression?
+# We use this when the dependent variable we want to predict is ordinal while the independent variables are ordinal or continuous.
+# Ordinal regression analysis assumes a dependence or causal relaitonship btw 1 or more independent and one dependent variable.
+# This can be used for 1) causal analysis 2) forecasting an effect OR 3) trend forecasting.
+# 
+
+# This model includes the variables of interest for our hypotheses
+mod1 = polr(coyote.attitude ~ age + education + pet.int + livestock.int, data = coyote, method="logistic", Hess=TRUE)
+AIC(mod1)
+summary(mod1)
+coef(mod1) #extract model coef 
+ctable = coef(summary(mod1))
+p = pnorm(abs(ctable[, "t value"]), lower.tail = FALSE) * 2  ## add the p-values to the table
+ctable = cbind(ctable, "p value" = p)
+ctable
+(ci <- confint(mod1))
+exp(cbind(odd_ratio = coef(mod1), ci))  ## porportional odds ratios (success/failure)
+                                        ## example, success = .8, failure = .2; OR = .8/.2 = 4; odds of success are 4 to 1
+
+# interpretting results,
+# for each one unit increase in age, the odds of a participant being more likely to have a positive attitude 
+# is multipled .988 times, holding other variables  
+
+#Let's try variations of these variables and compare AIC's
+mod2 = polr(coyote.attitude ~ education + pet.int + livestock.int, data = coyote, method="logistic", Hess=TRUE)
+AIC(mod2)
+
+mod3 = polr(coyote.attitude ~ age + pet.int + livestock.int, data = coyote, method="logistic", Hess=TRUE)
+AIC(mod3)
+
+mod4 = polr(coyote.attitude ~ pet.int + livestock.int, data = coyote, method="logistic", Hess=TRUE)
+AIC(mod4)
+
+AIC(mod1, mod2, mod3, mod4) #Looks like our best model, model 4, includes all of our independent variables of interest!
+
+# We can also explore our hypothesis via plotting-------------------------------
+# Histograms and barplots of variable values and ranking of attitude
+coyote %>% filter(is.na(age)== FALSE) %>%
+  ggplot(aes(x = age, y = coyote.attitude, fill = coyote.attitude))+
+  geom_jitter(color = "darkgray", size = .3, alpha =.9)+
+  geom_boxplot()
+
+ggplot(coyote, aes(education, fill = coyote.attitude)) +
+  geom_bar() +
+  labs(x = "Education", y = "Counts", title = "Coyote Attitude by Education") + 
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        text = element_text(family = "LM Roman 10 Bold", size=15))
+
+ggplot(coyote, aes(pet.int, fill = coyote.attitude)) +
+  geom_bar() +
+  labs(x = "Pet Interaction", y = "Counts", title = "Coyote Attitude by Pet Interaction") + 
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        text = element_text(family = "LM Roman 10 Bold", size=15))
+
+ggplot(coyote, aes(livestock.int, fill = coyote.attitude)) +
+  geom_bar() +
+  labs(x = "Livestcok Interaction", y = "Counts", title = "Coyote Attitude by Livestock Interaction") + 
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        text = element_text(family = "LM Roman 10 Bold", size=15))
+
+ggplot(coyote, aes(x = coyote.attitude, y = age)) +
+  geom_boxplot(size = .75) +
+  geom_jitter(alpha = .5) +
+  facet_grid(livestock.int ~ pet.int, margins = TRUE) +
+  theme(axis.text.x = element_text
+        (angle = 45, hjust = 1, vjust = 1))
+
+# Let's play around with a few more variables we measured
+# mod6 = polr(coyote.attitude ~ age + gender + education + household.income, data = coyote, method="logistic", Hess=TRUE)
+# AIC(mod6)
+# 
+# mod7 = polr(coyote.attitude ~ age + gender + education + household.income + pet.owner, data = coyote, method="logistic", Hess=TRUE)
+# AIC(mod7)
+#  
+# e.out = Effect(focal.predictors = c("age", "pet.int"), mod1)
+# 
+# plot(e.out, rug = FALSE)
