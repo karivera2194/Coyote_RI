@@ -18,50 +18,13 @@ library(dplyr)
 library(psych)
 library(janitor)
 library(corrr)
-# Read in data------------------------------------------------------------------
-# Before I read this in, I deleted two nonsensical rows 1 and 3 (not sure how to code)
-setwd("C:/Users/Kim Rivera/Documents/Coyotes/Questionnaire Data/live survey/r_data")
-coyote_raw = read_csv("Coyote Questionnaire_final_dataset.csv") # OG survey data
+# Read in data----------------------------------------------------------------
 
-# Organize data-----------------------------------------------------------------
-coyote <- coyote_raw %>% mutate(date = round_date(mdy_hm(`End Date`))) %>% 
-  select(-c(1,2,4,7,8,10:13, 16, 17, 158:162)) 
-  #slice(-(1:12)) 
-coyote<- coyote[-c(1:12),] # 'Official' survey started Oct 6
-
-## Rename columns
-names <- colnames(coyote)
-colnames(coyote) <- c("response.type", "progress","time","ID","lat","lon","resident","years.residency","not.resident",
-                      "not.resident.others","months.RI", "months.RI.text","county","town","town.text",
-                      "street","street.text","outdoor","outdoor.text","nature.person","image.relation.nature",
-                      "important.ecosystem","beneficial.humans", "beneficial.wildlife","important.hunters","risk.humans","risk.pets",
-                      "negative.wildlife","diseases","reaction","reaction.text","fearful","problem.when",
-                      "problem.when.text","coyote.population","all.removed","problem.removed","problem.relocated",
-                      "all.sterilized","problem.sterilized","preventive.measures","more.research",
-                      "education.program","footholds","native","ri.past.10.years","litter.food",
-                      "nocturnal","carnivores","human.rabies.year","furbearers","NAMWC","place.coyotes",
-                      "place.should","fq.hear","fq.see","fq.see.pups","fq.see.roadkill","fq.see.scat",
-                      "fq.see.neighbour","fq.see.eat", "fq.aggressive","fq.fed","pet.owner","pet","pet.text","risk.outdoor.cat",
-                      "encounter.outdoor.cat","attack.outdoor.cat","missing.outdoor.cat","kill.outdoor.cat",
-                      "risk.large.dog","encounter.large.dog","attack.large.dog","missing.large.dog",
-                      "kill.large.dog","risk.small.dog","encounter.small.dog","attack.small.dog",
-                      "missing.small.dog","kill.small.dog","risk.pet","encounter.pet","attack.pet",
-                      "missing.pet","kill.pet","livestock.owner","livestock","livestock.text",
-                      "risk.goat","encounter.goat","attack.goat","missing.goat","kill.goat",
-                      "risk.sheep","encounter.sheep","attack.sheep","missing.sheep","kill.sheep",
-                      "risk.poultry","encounter.poultry","attack.poultry","missing.poultry","kill.poultry",
-                      "risk.pig","encounter.pig","attack.pig","missing.pig","kill.pig","risk.cattle",
-                      "encounter.cattle","attack.cattle","missing.cattle","kill.cattle","risk.other",
-                      "encounter.other","attack.other","missing.other","kill.other",
-                      "protect.from.coyote","measures","measures.text","take.care","not.to.worry",
-                      "human.ingenuity","plenty.resources","equal.rights","laws.of.nature","humans.rule","delicate.balance",
-                      "envt.cata","age","ethnicity","ethnicity.text","education","household.income",
-                      "gender","share","seek.info","contact.envt.mgt.nat.resources","contact.police","contact.uri",
-                      "contact.wildlife.center","contact.nature.center","contact.animal.control",
-                      "contact.envt.mgt.law.enforce","date")
+setwd("C:/Users/Kim Rivera/Documents/URI/Coyotes/Final_GIT")
+coyote_raw = read_csv("coyote_data_GIT.csv") # survey data
 
 # Convert all characters to factor for simplicity, can change back to numeric, etc later if needed
-coyote = coyote %>% mutate_if(sapply(coyote, is.character), as.factor)
+coyote = coyote_raw %>% mutate_if(sapply(coyote_raw, is.character), as.factor)
 
 # create new column which ID's unusable data, 0 = good data, 1's = unusable/ flagged 
 # start with survey.type and flag 'Survey Preview' and 'Spam'
@@ -70,7 +33,7 @@ coyote = coyote %>% mutate(flagged = ifelse(response.type == "Spam", 1,
 coyote = filter(coyote, flagged != 1)
 # Participant Demographics------------------------------------------------------
 
-## Age --------------------------------------------------------------------------
+## Age -------------------------------------------------------------------------
 ## Check Out Distribution
 ggplot(coyote, aes(x=age)) +
   geom_histogram()
@@ -104,20 +67,6 @@ levels(coyote$gender)
 ggplot(coyote, aes(x= gender)) +
   geom_bar()
 
-length(which(coyote$gender=="male")) # 324
-(324/971)*100 # 33.37%
-length(which(coyote$gender=="female")) #451
-(451/971)*100 # 46.45%
-length(which(coyote$gender=="non.binary")) #7 # look into how to report non binary population
-(7/971)*100 # .72%
-length(which(is.na(coyote$gender))) # 189
-
-sum(324+451+7+189) #971
-# Actual RI %'s: 
-# Pop estimate 2019 = 1,059,361 OR 1,057,231 based on county totals
-# female = 51.3%
-119/1059361
-
 
 ## Education--------------------------------------------------------------------
 levels(coyote$education)
@@ -131,34 +80,6 @@ ggplot(coyote, aes(education, fill = education)) +
   theme(legend.position="none",
         axis.text.x = element_text(angle = 45, hjust = 1),
         text = element_text(family = "LM Roman 10 Bold", size=15)) 
-
-# STATS to RI POP
-length(which(coyote$education=="Elementary School")) #1
-length(which(coyote$education=="Middle School")) #0
-
-length(which(coyote$education=="High School")) #88
-length(which(coyote$education=="Technical or vocational degree")) # 32
-length(which(coyote$education=="2-year college degree or certificate")) # 89
-length(which(coyote$education=="4-year college Degree")) # 274
-length(which(coyote$education=="Graduate Degree")) # 321
-length(which(is.na(coyote$education))) # 166
-sum(88+32+89+274+321+166)
-
-sum(88+32+89+274+321) # 804: Highschool or higher
-(804/971)*100 # 82.80%
-sum(274+321+166) # 761: Bachelors or higher 
-(761/971)*100 # 78.37%
-
-# Actual RI %'s: 
-# Pop estimate 2019 = 1,059,361 OR 1,057,231 based on county totals
-# https://www.census.gov/quickfacts/RI
-# https://www.rhodeisland-demographics.com/counties_by_population
-#
-# Highschool or higher = 88.8%
-# Bachelors of higher = 34.2%
-# pop total = 1,059,361
-
-
 
 ## Household Income-------------------------------------------------------------
 # Turn into factor
@@ -177,37 +98,10 @@ ggplot(coyote, aes(household.income, fill = household.income)) +
         axis.text.x = element_text(angle = 45, hjust = 1),
         text = element_text(family = "LM Roman 10 Bold", size=15)) 
 
-# STATS to RI POP
-length(which(coyote$household.income=="Under $15,000")) #17
-length(which(coyote$household.income=="Between $15,000 and $29,999")) # 49
-length(which(coyote$household.income=="Between $30,000 and $49,999")) # 64
-length(which(coyote$household.income=="Between $50,000 and $74,999")) # 109
-length(which(coyote$household.income=="Between $75,000 and $99,999")) # 141
-length(which(coyote$household.income=="Between $100,000 and $149,999")) # 176
-length(which(coyote$household.income=="Between $150,000 and $199,999")) # 101
-length(which(coyote$household.income=="$200,000 or more")) # 72
-length(which(is.na(coyote$household.income))) # 242
-sum(17+49+64+109+141+176+101+72+242) # 971
-(971/2)-242 # 243.5
-sum(17+49+64+109)
-sum(17+49+64+109+141) # So based on the this...I think the median income is btw 75,000 and 99,999
-
-# Actual RI %'s: 
-# Pop estimate 2019 = 1,059,361 OR 1,057,231 based on county totals
-# Median household income 2015-2019 = 67,167
-
-
 ## Ethnic Group-----------------------------------------------------------------
 levels(factor(coyote$ethnicity))
 ggplot(coyote, aes(x=ethnicity)) +
   geom_bar()
-
-# Not sure fo the best way to aggregate these...
-exam = filter(coyote, ethnicity == "Asian,Other (please specify)")
-exam = filter(coyote, ethnicity == "Native American,Other (please specify)")
-exam = filter(coyote, ethnicity == "White/ Caucasian,Other (please specify)")
-exam = filter(coyote, ethnicity == "Other (please specify)")
-exam = filter(coyote, ethnicity == "White/ Caucasian") #754  
 
 coyote <- coyote %>% 
   mutate(ethnicity.african.american = ifelse(str_detect(ethnicity,"African American"),1,0),
@@ -305,22 +199,6 @@ coyote %>%
   theme(legend.position="none",
         text = element_text(family = "LM Roman 10 Bold", size=15))
 
-# Is years or residency related to age?
-fit = lm(years.residency ~ age, data = coyote)
-summary(fit)
-
-plot(years.residency ~ age, data = coyote)
-abline(fit)
-
-ggplot(coyote, aes(x = age, y = years.residency)) + 
-  geom_point() +
-  stat_smooth(method = "lm", col = "red")
-# Something is weird here... why is there a perfect linear relationship for some participants
-exam = select(coyote, c(age, years.residency))
-# I think this is because residents have lives in RI the same as their age (since they have been born)
-# and you can't be a resident longer than you've been alive!
-
-
 ## Non-residents----------------------------------------------------------------
 levels(factor(coyote$not.resident))
 levels(factor(coyote$not.resident.others))
@@ -374,11 +252,6 @@ coyote %>%
         axis.text.x = element_text(angle = 45, hjust = 1),
         text = element_text(family = "LM Roman 10 Bold", size=15))
 
-str_count(coyote$not.resident, "(?i)student")
-
-non.res.student.count = coyote %>% select(not.resident.student) %>% filter(. == "1") # There are 27 of these
-
-
 ## County-----------------------------------------------------------------------
 levels(factor(coyote$county))
                              
@@ -403,52 +276,6 @@ coyote %>%
   theme(legend.position="none",
         axis.text.x = element_text(angle = 45, hjust = 1),
         text = element_text(family = "LM Roman 10 Bold", size=15)) 
-
-# I wonder if there is a relationship between income and county?
-coyote %>% 
-  mutate(county = factor(county, levels = levels)) %>% 
-  ggplot(aes(x = county, fill = household.income)) + 
-  geom_bar() + 
-  labs(x = "County", y = "Counts", title = "Counts per county") + 
-  theme_minimal() 
-# Hmm, nothing strikingly obvious, would have to investigate this more
-
-
-length(which(coyote$county=="Newport")) # 143 
-(143/971)*100 #14.73% (over represented)
-length(which(coyote$county=="Kent")) # 94
-(94/971)*100 #9.68% (under represented)
-length(which(coyote$county=="Washington")) #293
-(293/971)*100 #30.18% (over represented)
-length(which(coyote$county=="Bristol")) # 63
-(63/971)*100 #6.49% (slightly over represented)
-length(which(coyote$county=="Providence")) # 270
-(270/971)*100 #27.81% (under represented)
-length(which(coyote$county=="Not_shared")) # 15
-(15/971)*100 #1.54% 
-length(which(is.na(coyote$county))) # 93
-(93/971)*100 #9.58%
-sum(143+94+293+63+270+15+93) # Good this is our total sum of 'filtered' participants
-
-# Actual RI %'s: 
-# Pop estimate 2019 = 1,059,361
-# https://www.census.gov/quickfacts/RI
-# https://www.rhodeisland-demographics.com/counties_by_population
-#
-# Newport: 82,801 
-(82801/1057231)*100 # 7.83% 
-# Kent: 163,869
-(163869/1057231)*100 # 15.50% 
-# Providence: 635,737 
-(635737/1057231)*100 # 60.13% ()
-# Washington: 126,060
-(126060/1057231)*100 # 11.92%
-# Bristol: 48,764
-(48764/1057231)*100 # 4.61%
-
-82801+163869+635737+126060+48764 # 1,057,231 WE WILL USE THIS IS THE POP TOTAL
-
-
 
 ## Town-------------------------------------------------------------------------
 
@@ -526,8 +353,6 @@ coyote %>%
   theme(legend.position="none",
         axis.text.x = element_text(angle = 45, hjust = 1),
         text = element_text(family = "LM Roman 10 Bold", size=10)) 
-# There is a lot of varied distribution for towns, probably best not to use this as a 
-# potential predcitor variable 
 
 # Relationship with the Outdoors------------------------------------------------
 levels(factor(coyote$outdoor))
@@ -595,8 +420,6 @@ coyote %>%
         axis.text.x = element_text(angle = 45, hjust = 1),
         text = element_text(family = "LM Roman 10 Bold", size=15)) 
 
-# It may be interested to relate these activities to people's relationship with nature
-
 # Relationship with nature------------------------------------------------------
 # Circles are coded so that the increasing number is a higher relationships ship with nature
 # e.g. 1 = lowest, 6 = closest relationship
@@ -604,32 +427,16 @@ coyote = coyote %>% mutate(image.relation.nature= factor(image.relation.nature))
 view = coyote %>% select(image.relation.nature)
 levels(coyote$image.relation.nature)
 
-# Change pet.int from yes/no, to 1/0
 nature.person = coyote %>% select(nature.person) %>%
   mutate_all(~case_when(
     . == "Yes" ~ 1,
     . == "No" ~ 0))
 
-# How do I interpret binary and capped numeric data?
-# Based on a glm model, it looks like these binary data are only useful in predicting 
-# nature relationships levels 4, 5, and 6 
-
 coyote %>% 
   ggplot(aes(x = nature.person, fill = image.relation.nature)) + 
   geom_bar() 
-# This shows us that people who consider themselves a nature person most
-# scored themselves a 3 or above on the factorial relationship scale, 
-# those who chose no, are more varied with all options having been chosen, most commonly
-# levels 2 and 3
-
-model <- glm(nature.person ~ image.relation.nature, data = coyote, family = "binomial")
-summary(model)
-# looks like only level 4,5, and 6 have a significant influence on the outcome 
-# being successful e.g. a person is nature oriented
-# https://stats.idre.ucla.edu/r/dae/logit-regression/
 
 
-# Now let's compare this to the 
 # New Ecological Paradigm results-----------------------------------------------
 # Increasing environmental value goes from strongly disagree [1] -> strongly agree [5]
 # Some are reverse coded based on which way value moves e.g. strongly agree [1] -> strongly disagree [5]
@@ -655,99 +462,6 @@ coyote <- coyote  %>%
 coyote <- coyote  %>%
   mutate(envt.cata = fct_relevel(envt.cata, c("Strongly disagree", "Disagree", "Neither agree nor disagree",  "Agree", "Strongly agree")))
 
-# Cronbach's alpha test for environmental values--------------------------------
-# Unclass likert scales to be numeric
-envt.concern = coyote %>%
-  select(c(take.care, not.to.worry, human.ingenuity, plenty.resources,
-           equal.rights, laws.of.nature, humans.rule, delicate.balance, envt.cata)) %>%
-  mutate_at(c("take.care", "not.to.worry", "human.ingenuity", "plenty.resources",
-              "equal.rights", "laws.of.nature", "humans.rule", "delicate.balance","envt.cata"), ~unclass(.))
-
-# This test will tell us how well items here correlate
-# ideally want an alpha coefficient of 0.7 or higher for short lists of items 
-psych::alpha(envt.concern)
-# It looks like we have an acceptable alpha but just so, we should considering using PCA as done by Amburgey et al., 2012
-pca_envt.concern <- envt.concern %>%
-  select(where(is.numeric)) %>%
-  drop_na() %>%
-  scale() %>%
-  prcomp()
-
-summary(pca_envt.concern) # looks like PC1 only explains 50%, it seems we need to include more dimensions
-# PC2 captures 16.7%
-# *Kaiser criterion = If the eigenvalues are > 1, retain that component
-# sum of eigenvalues = total variance 
-# https://www.youtube.com/watch?v=oZ2nfIPdvjY
-eigenvalues = pca_envt.concern$sdev ^2 # This shows we should consider the first three dimensions
-screeplot(pca_envt.concern, main = "Screen Plot", xlab = "Components")
-pca_loadings = pca_envt.concern$rotation # indicate extend each variables is correlated with each component
-
-# We have three key dimensions, the first considers all questions,
-# the second: -c(humans.rule, not.to.worry)
-# the third: -c(human.ingenuity, plenty.resources, envt.cata)
-
-
-envt.concern1 = coyote %>%
-  select(c(take.care, not.to.worry, human.ingenuity, plenty.resources,
-           equal.rights, laws.of.nature, humans.rule, delicate.balance, envt.cata, ID)) %>%
-  mutate_at(c("take.care", "not.to.worry", "human.ingenuity", "plenty.resources",
-              "equal.rights", "laws.of.nature", "humans.rule", "delicate.balance","envt.cata"), ~unclass(.))
-
-envt.concern1 = envt.concern1 %>% mutate(envt.concern1.sum = rowSums(envt.concern1[,1:9], na.rm = TRUE))
-
-envt.concern2 = coyote %>%
-  select(c(take.care, human.ingenuity, plenty.resources,
-           equal.rights, laws.of.nature, delicate.balance, envt.cata, ID)) %>%
-  mutate_at(c("take.care", "human.ingenuity", "plenty.resources",
-              "equal.rights", "laws.of.nature", "delicate.balance","envt.cata"), ~unclass(.))
-envt.concern2 = envt.concern2 %>% mutate(envt.concern2.sum = rowSums(envt.concern2[,1:7], na.rm = TRUE))
-
-
-envt.concern3 = coyote %>%
-  select(c(take.care, not.to.worry,
-           equal.rights, laws.of.nature, humans.rule, delicate.balance, ID)) %>%
-  mutate_at(c("take.care", "not.to.worry",
-              "equal.rights", "laws.of.nature", "humans.rule", "delicate.balance"), ~unclass(.))
-
-envt.concern3 = envt.concern3 %>% mutate(envt.concern3.sum = rowSums(envt.concern1[,1:6], na.rm = TRUE))
-
-
-coyote = envt.concern1 %>% select(ID, envt.concern1.sum) %>%
-  left_join(coyote, envt.concern1, by = "ID")
-coyote = envt.concern2 %>% select(ID, envt.concern2.sum) %>%
-  left_join(coyote, envt.concern2, by = "ID")
-coyote = envt.concern3 %>% select(ID, envt.concern3.sum) %>%
-  left_join(coyote, envt.concern3, by = "ID")
-
-
-model <- glm(envt.concern1.sum ~ image.relation.nature, family = poisson(link = log), data = coyote)
-summary(model)
-
-# Wilkinson-Rogers Method
-envt.concern1.fail = coyote %>% select(ID, envt.concern1.sum) %>%
-  mutate(envt.concern1.sum.fail = 45-envt.concern1.sum) %>%
-  select(-envt.concern1.sum)
-
-coyote = envt.concern1.fail %>% select(ID, envt.concern1.sum.fail) %>%
-  left_join(coyote, envt.concern1.fail, by = "ID")
-
-model = glm(formula = cbind(envt.concern1.sum, envt.concern1.sum.fail) ~ image.relation.nature, family = binomial, data = coyote)
-summary(model)
-plot(model)
-ggplot(aes(x=envt.concern1.sum), y = image.relation.nature)
-
-# no constrant in the model
-# maybe think about as a porportion (logistic regression--use glm binomial)
-# each number is success, diff is failure 
-# see website
-
-coyote %>%
-  ggplot(aes(x = image.relation.nature, fill = envt.concern1.sum)) + 
-  geom_bar()
-
-coyote %>% 
-  ggplot(aes(x = nature.person, fill = image.relation.nature)) + 
-  geom_bar()
 
 # Pet Demographics--------------------------------------------------------------
 ## Lets check out population of pet owners
@@ -832,8 +546,7 @@ coyote %>%
         axis.text.x = element_text(angle = 45, hjust = 1),
         text = element_text(family = "LM Roman 10 Bold", size=15)) 
 
-#dev.off()
-# Livestock-Coyote Interactions-------------------------------------------------
+# Livestock ownership-----------------------------------------------------------
 ## Let's start with ownership
 
 ggplot(coyote, aes(x = livestock.owner, color = livestock)) +
@@ -892,7 +605,7 @@ coyote %>%
         text = element_text(family = "LM Roman 10 Bold", size=15)) 
 
 
-## Lets get into the interactions now!------------------------------------------
+# Lets get into the interactions now!------------------------------------------
 
 # Pet-Coyote Interactions-------------------------------------------------------
 ## Create new column for having had any pet-coyote interaction
@@ -917,11 +630,11 @@ pet.int = pet.int %>%
     . == "Yes" ~ 1,
     . == "No" ~ 0))
 
-## Create new column of all percieved pet-coyote int
+## Create new column of all perceived pet-coyote int
 pet.int.perc = pet.int %>%
   select(c(matches("risk.|missing.")))
 
-## Turn column in 1/0 if percieved pet-coyote int occured (1 = Yes, 0 = NA or No)--This will be a later problem, I want NA's to stay NA's***
+## Turn column in 1/0 if perceived pet-coyote int occured (1 = Yes, 0 = NA or No)--This will be a later problem, I want NA's to stay NA's***
 pet.int.perc = pet.int.perc %>% 
   mutate(pet.int.perc = ifelse(rowSums(pet.int.perc, na.rm=TRUE) >= 1, 1, 0)) %>%
   select(pet.int.perc)
@@ -939,16 +652,6 @@ pet.int.low = pet.int.low %>%
 pet.int.high = pet.int.high %>% 
   mutate(pet.int.high = ifelse(rowSums(pet.int.high, na.rm=TRUE) >= 1, 1, 0)) %>%
   select(pet.int.high)
-
-# Problem here, need to translate yes and no to 1,0 then summarize all by 1, 0
-# animal.incident = coyote %>%
-#   select(c(matches("attack.|kill."), ID)) %>%
-#   mutate(ifelse(.[,1:20])
-#     
-#     ~case_when(
-#     . == "Yes" ~ 1, 
-#     . == "No" ~ 0,
-#     TRUE ~ as.factor(.)))
 
 animal.incident = coyote %>%
   select(c(matches("attack.|kill."), ID)) %>%
@@ -1021,10 +724,12 @@ coyote = left_join(coyote, animal.owner, by = "ID")
 animal.owner.animal = coyote %>% select(ID, pet.owner, livestock.owner, pet, pet.text, livestock, livestock.text) %>% 
   mutate(animal.owner = ifelse(pet.owner == 1 | livestock.owner ==1, 1, 0)) %>%
   select(-c(pet.owner, livestock.owner))
-# Now we consider our dependent variables
+
+# Now we consider our response variables----------------------------------------
 # First Value of coyotes
-# Lets focus on Peoples Thoughts on coyotes, e.g. ranking of benefits and risks---------------------------------
-# Starting with benefits strong disagree [1] -> strong agree [5]
+# Lets focus on Peoples Thoughts on coyotes, e.g. ranking of benefits and risks-
+
+## Starting with benefits strong disagree [1] -> strong agree [5]---------------
 coyote <- coyote  %>%
   mutate(important.ecosystem = fct_relevel(important.ecosystem, c("Strongly Disagree", "Disagree", "Neither agree nor disagree",  "Agree", "Strongly Agree")))
 coyote <- coyote  %>%
@@ -1034,7 +739,7 @@ coyote <- coyote  %>%
 coyote <- coyote  %>%
   mutate(important.hunters = fct_relevel(important.hunters, c("Strongly Disagree", "Disagree", "Neither agree nor disagree",  "Agree", "Strongly Agree")))
 
-# Now risks strong disagree [5] -> strongly agree [1]
+## Now risks strong disagree [5] -> strongly agree [1]--------------------------
 coyote <- coyote  %>%
   mutate(risk.humans = fct_relevel(risk.humans, c("Strongly Agree", "Agree", "Neither agree nor disagree", "Disagree", "Strongly disagree")))
 coyote <- coyote  %>%
@@ -1103,119 +808,16 @@ knowledge.score = knowledge.score %>% mutate(knowledge.score = rowSums(.[,1:7], 
 coyote = left_join(coyote, knowledge.score, by = "ID")
 exam = coyote %>% select(native:furbearers, ID, knowledge.score) # check this worked
 
-# Let's save our data set and start analysing data elsewhere!-------------------
+# Let's save our data set and start analyzing data elsewhere!-------------------
 
-write.csv(coyote, file = "C:/Users/Kim Rivera/Documents/Coyotes/Questionnaire Data/live survey/r_data/coyote_cleaned.csv")
+write.csv(coyote, file = "OUTPUT LOCATION/FILE HERE")
 
 
 ########################   STOP HERE FOR CLEANING   ############################
 
-# Now let's look at analyzing data----------------------------------------------
-# First let's focus on organizing and checking validity of coyote.value scales
+## Prep data for bayesian analysis on coyote 'value'----------------------------
+# this is a Likert scale so we need one more step to analyze data
 
-# Let's first create a table of these columns for 
-# Cronbach's alpha test---------------------------------------------------------
-# Unclass likert scales to be numeric
-coyote.values = coyote %>%
-  select(c(important.ecosystem, beneficial.humans, beneficial.wildlife, important.hunters,
-           risk.humans, risk.pets, negative.wildlife, diseases)) %>%
-  mutate_at(c("important.ecosystem", "beneficial.humans", "beneficial.wildlife", "important.hunters",
-              "risk.humans", "risk.pets", "negative.wildlife", "diseases"), ~unclass(.))
-
-# This test will tell us how well items here correlate
-# ideally want an alpha coefficient of 0.7 or higher for short lists of items 
-psych::alpha(coyote.values)
-
-# Our raw alpha is .84, values > .7 indicate good reliability so it appears our
-# questions are well correlated to represent value of coyotes. The question that 
-# appears most out of place is 'important.hunters'. Perhaps this is b/c ppl who values 
-# coyotes do not consider them game species. We could consider removing this variables to
-# increase our alpha to .87, although .84 should be sufficient in data < 25 items
-
-# Principal Component Analysis for Values---------------------------------------
-# as recommended by Amburgey et al., 2012
-# https://clauswilke.com/blog/2020/09/07/pca-tidyverse-style/
-# https://towardsdatascience.com/understanding-pca-fae3e243731d
-# https://online.stat.psu.edu/stat505/lesson/11/11.4
-# https://personality-project.org/r/psych/help/principal.html
-# http://www.sthda.com/english/articles/31-principal-component-methods-in-r-practical-guide/118-principal-component-analysis-in-r-prcomp-vs-princomp/
-
-library(broom)
-library(cowplot)
-library(factoextra)
-
-pca_fit <- coyote.values %>%
-  select(where(is.numeric)) %>%
-  drop_na() %>%
-  scale() %>%
-  prcomp()
-
-summary(pca_fit) # looks like PC1 only explains 50%, it seems we need to include more dimensions
-                 # PC2 captures 16.7%
-# *Kaiser criterion = If the eigenvalues are > 1, retain that component
-# sum of eigenvalues = total variance 
-# https://www.youtube.com/watch?v=oZ2nfIPdvjY
-eigenvalues = pca_fit$sdev ^2
-screeplot(pca_fit, main = "Screen Plot", xlab = "Components")
-pca_loadings = pca_fit$rotation # indicate extend each variables is correlated with each component
-
-# Another standard tradition is to keep only the components whose eigenvalue
-# is larger than the average eigenvalue. 
-mean(eigenvalues)
-
-
-# Ordinal Regression------------------------------------------------------------
-# we need to conduct two ordinal regressions based on PCA
-# Model 1: all variables
-# Model 2: all variables except negative.wildlife (coyotes negatively impact other wildlife in RI)
-# Model 3* We could consider this as important.hunters seems to have a completely different relationship 
-# to value to other variables
-# Moving on to the ordinal logistic regression, let's get our response variable married to our predictors of interest
-# ord.reg = coyote %>% select(education) %>%
-#   tibble(.,pet.int.high, pet.int.low, coyote.values)
-
-# We are going to conduct two regressions for each important component
-# let's review all the potential the variables we want to test
-
-# Indep vars = age, gender, income, residency, environmental values, relationship with
-# nature, animal ownership (pets/ livestock), knowledge of coyotes, fear of coyotes,
-# and experience with coyotes
-
-# Now let's recall what the variables are in R!
-coyote$age # continuous
-coyote$gender # categorical
-coyote$county #categorical 
-coyote$nature.person # binary
-coyote$image.relation.nature # leveled factor 1-6
-# IP coyote$envt.concern
-coyote$fear # binary
-coyote$knowledge.score # level factor 1-7
-coyote$animal.owner # binary
-coyote$animal.incident #binary
-coyote$envt.concern1.sum
-coyote$envt.concern2.sum
-coyote$envt.concern3.sum
-
-# Maybe don't include frequencies into model, too complicated and looking at this separatly anyway
-# IP coyote$human.incident #binary (not sure I asked this well enough to distinguish coyote human or animal aggression--ask Brian opinion)
-# IP coyote$encounter (perhaps include sightings and eating garbage etc)
-
-
-
-# Baysian model fitting---------------------------------------------------------
-# file:///C:/Users/Kim%20Rivera/Downloads/ordinal_analysis.html
-# https://osf.io/vxw73/
-# https://osf.io/tasu5
-# https://github.com/paul-buerkner/brms/blob/master/R/distributions.R
-# https://github.com/lottybrand/GH_Kernow (this is for Brand et al., 2019)
-
-library("devtools")
-devtools::install_github("paul-buerkner/brms")
-library("brms")
-
-# Model 1: This refers to our value model with dimension 1 from PCA results which considers all 'value' questions
-# First we need our response data in 'longer data' e.g. there will be column headers
-# for each Question and rows are a value for each question
 coyote.values.bays = coyote %>%
   select(c(important.ecosystem, beneficial.humans, beneficial.wildlife, important.hunters,
            risk.humans, risk.pets, negative.wildlife, diseases, ID)) %>%
@@ -1226,62 +828,11 @@ coyote.values.bays = coyote %>%
 coyote.values.bays = coyote.values.bays %>% pivot_longer(cols = important.ecosystem:diseases,
                                                          names_to = "value_question",
                                                          values_to = "value_rate")
-# Intercepts refer to the rating with rating 5 being the reference category
 
+# Intercepts refer to the rating with rating 5 being the reference category
 coyote_bayes = inner_join(coyote, coyote.values.bays, by = "ID") #Remember you need to join on a unique variable
 
 
-# Model 2: This refers to our value model with dimension 2 from PCA results which does not considers the 'negative.wildlife' question
-
-# First we need our response data in 'longer data' e.g. there will be column headers
-# for each Question and rows are a value for each question
-coyote.values.bays2 = coyote %>%
-  select(c(important.ecosystem, beneficial.humans, beneficial.wildlife, important.hunters,
-           risk.humans, risk.pets, diseases, ID)) %>%
-  mutate_at(c("important.ecosystem", "beneficial.humans", "beneficial.wildlife", "important.hunters",
-              "risk.humans", "risk.pets", "diseases"), ~unclass(.))
-
-
-coyote.values.bays2 = coyote.values.bays2 %>% pivot_longer(cols = important.ecosystem:diseases,
-                                                           names_to = "value_question",
-                                                           values_to = "value_rate")
-# Intercepts refer to the rating with rating 5 being the reference category
-
-coyote_bayes2 = inner_join(coyote, coyote.values.bays2, by = "ID") #Remember you need to join on a unique variable
-
-
-# Result Plotting---------------------------------------------------------------
-# https://cran.r-project.org/web/packages/tidybayes/vignettes/tidy-brms.html
-
-
-# Predicting with our models----------------------------------------------------
-# create a new dataset for model with every possibility 
-# Create new data 
-# then use expand.grid function
-summary(mod1.1)
-
-age = seq(18,100, by = 10)
-county = c("Bristol","Newport","Washington","Providence","Kent")
-gender = c("male", "female", "non.binary")
-image.relation.nature = as.factor(seq(1,6, 1))
-fear = seq(0,1, 1)
-knowledge.score = seq(1,45, by = 5)
-animal.owner = seq(0,1, by = 1)
-animal.incident = seq(0,1, by = 1)
-
-newdat = expand.grid(age = age, county = county, gender = gender, image.relation.nature = image.relation.nature,
-                     fear = fear, knowledge.score = knowledge.score, animal.owner = animal.owner, animal.incident = animal.incident)
-newdat <- cbind(newdat, predict(mod1.1, newdat, type = "probs"))
-
-# Our significant variables were: countyNot_shared, genderfemale, image.relation.nature (all), fear, and 
-# animal.incident
-newdat %>% 
-  pivot_longer(9:16, names_to = "Level", values_to="Probability") %>% 
-  ggplot(aes(x = age, y = Probability, color=factor(Level))) +
-  geom_line(alpha=0.7) + 
-  scale_color_brewer(palette = "RdYlBu") + 
-  facet_grid(fear~image.relation.nature) + theme_minimal() + 
-  labs(color="Level")
-
-# Plotting
-# https://cran.r-project.org/web/packages/tidybayes/vignettes/tidy-brms.html
+## Save tables needed for Bayes analyses----------------------------------------
+save(coyote, file="coyote")
+save(coyote_bayes, file="coyote_bayes")
